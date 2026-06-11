@@ -10,4 +10,10 @@ describe('Community percentile', () => {
         expect(Array.isArray(res.buckets)).toBe(true);
         expect(res.buckets.length).toBeGreaterThan(0);
     });
+
+    it('preserves custom bins length', () => {
+        const res = Calc.computePercentile(12, [2, 4, 8, 16, 32], [5, 10, 20]);
+        expect(res.bins).toEqual([5, 10, 20]);
+        expect(res.buckets.length).toBe(3);
+    });
 });

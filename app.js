@@ -111,6 +111,15 @@ function initLucide() {
     }
 }
 
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // 5. STORAGE INTEGRATION
 function saveStateToStorage() {
     localStorage.setItem('ecosphere_state', JSON.stringify(state));
@@ -431,50 +440,47 @@ function generateCaveats() {
 // Render deterministic, context-aware recommendations (no external AI required)
 function renderRecommendations() {
     const container = document.getElementById('recommendations-container');
-    container.innerHTML = '';
+    container.replaceChildren();
 
-    // Determine dominant source
-    const values = state.emissions;
-    const pairs = [
-        { key: 'transport', val: values.transport },
-        { key: 'energy', val: values.energy },
-        { key: 'diet', val: values.diet },
-        { key: 'shopping', val: values.shopping }
-    ];
-    pairs.sort((a,b) => b.val - a.val);
-
-    const top = pairs[0].key;
-    const recs = [];
-
-    if (top === 'transport') {
-        recs.push({ title: 'Swap one weekly 10-mile car trip to bike/transit', savingsKg: Math.round(10 * 52 * COEFF.carMile), action: {type:'habit', id:'public-transit'} });
-        recs.push({ title: 'Combine errands to reduce weekly driving by 25%', savingsKg: Math.round((state.inputs.carMiles * 52 * COEFF.carMile) * 0.25), action: {type:'pledge', id:'electric-bike'} });
-    } else if (top === 'energy') {
-        recs.push({ title: 'Lower thermostat 2° and save energy', savingsKg: 250, action: {type:'habit', id:'thermostat'} });
-        recs.push({ title: 'Switch to LED bulbs at home', savingsKg: 150, action: {type:'pledge', id:'led-bulbs'} });
-    } else if (top === 'diet') {
-        recs.push({ title: 'Replace 2 meat meals per week with plant meals', savingsKg: 300, action: {type:'habit', id:'plant-meal'} });
-        recs.push({ title: 'Try a monthly vegetarian challenge', savingsKg: 600, action: {type:'pledge', id:'meatless-mondays'} });
-    } else {
-        recs.push({ title: 'Buy one secondhand item instead of new per month', savingsKg: 120, action: {type:'habit', id:'zero-waste'} });
-        recs.push({ title: 'Reduce discretionary shopping by 30%', savingsKg: 240, action: {type:'pledge', id:'green-power'} });
-    }
-
-    // Add a general recommendation
-    recs.push({ title: 'Start composting to reduce food waste', savingsKg: 80, action: {type:'habit', id:'zero-waste'} });
+    const recs = (window.EcoCalc && typeof window.EcoCalc.buildRecommendations === 'function')
+        ? window.EcoCalc.buildRecommendations(state.inputs, state.emissions)
+        : [];
 
     recs.forEach(rec => {
         const el = document.createElement('div');
         el.className = 'recommendation-item';
-        el.innerHTML = `
-            <div class="rec-left">
-                <div class="rec-title">${rec.title}</div>
-                <div class="rec-sub">Estimated savings: <strong>${rec.savingsKg} kg/yr</strong></div>
-            </div>
-            <div class="rec-actions">
-                <button class="btn btn-sm btn-primary apply-rec" data-type="${rec.action.type}" data-id="${rec.action.id}" data-savings="${rec.savingsKg}">Apply</button>
-            </div>
-        `;
+
+        const left = document.createElement('div');
+        left.className = 'rec-left';
+
+        const title = document.createElement('div');
+        title.className = 'rec-title';
+        title.textContent = rec.title;
+
+        const sub = document.createElement('div');
+        sub.className = 'rec-sub';
+        const savingsStrong = document.createElement('strong');
+        savingsStrong.textContent = `${rec.savingsKg} kg/yr`;
+        sub.append('Estimated savings: ');
+        sub.appendChild(savingsStrong);
+
+        left.appendChild(title);
+        left.appendChild(sub);
+
+        const actions = document.createElement('div');
+        actions.className = 'rec-actions';
+
+        const button = document.createElement('button');
+        button.className = 'btn btn-sm btn-primary apply-rec';
+        button.type = 'button';
+        button.dataset.type = rec.action.type;
+        button.dataset.id = rec.action.id;
+        button.dataset.savings = String(rec.savingsKg);
+        button.textContent = 'Apply';
+
+        actions.appendChild(button);
+        el.appendChild(left);
+        el.appendChild(actions);
         container.appendChild(el);
     });
 
@@ -518,7 +524,7 @@ function applyRecommendation(type, id, savingsKg) {
 // Render assessment history as a small line chart and list
 function renderHistory() {
     const list = document.getElementById('history-list');
-    list.innerHTML = '';
+    list.replaceChildren();
 
     const labels = state.history.map(h => {
         const d = new Date(h.ts);
@@ -552,7 +558,17 @@ function renderHistory() {
         const d = new Date(h.ts);
         const el = document.createElement('div');
         el.className = 'history-item';
-        el.innerHTML = `<div class="history-date">${d.toLocaleString()}</div><div class="history-val">${h.totalTons.toFixed(2)} t</div>`;
+
+        const dateEl = document.createElement('div');
+        dateEl.className = 'history-date';
+        dateEl.textContent = d.toLocaleString();
+
+        const valEl = document.createElement('div');
+        valEl.className = 'history-val';
+        valEl.textContent = `${h.totalTons.toFixed(2)} t`;
+
+        el.appendChild(dateEl);
+        el.appendChild(valEl);
         list.appendChild(el);
     });
 }
@@ -610,12 +626,22 @@ function printReport() {
 
         const now = new Date();
         const breakdown = state.emissions;
-        const html = `
+    const topRecommendations = Array.from(document.querySelectorAll('.recommendation-item .rec-title'))
+        .slice(0, 5)
+        .map(el => `<li>${escapeHtml(el.textContent)}</li>`)
+        .join('');
+
+    const historyRows = (state.history || [])
+        .slice(-6)
+        .map(h => `<tr><td>${escapeHtml(new Date(h.ts).toLocaleString())}</td><td>${h.totalTons.toFixed(2)}</td><td>${h.score}</td></tr>`)
+        .join('');
+
+    const html = `
         <html><head><title>EcoSphere Report</title>
         <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;color:#111}h1{color:#0b6}</style>
         </head><body>
         <h1>EcoSphere Assessment Summary</h1>
-        <p><strong>Date:</strong> ${now.toLocaleString()}</p>
+        <p><strong>Date:</strong> ${escapeHtml(now.toLocaleString())}</p>
         <h2>Total Footprint: ${state.totalEmissions.toFixed(2)} t CO₂e/yr</h2>
         <p><strong>Carbon Health Score:</strong> ${computeCarbonScore(state.totalEmissions)}</p>
         <h3>Breakdown (kg/year)</h3>
@@ -626,15 +652,13 @@ function printReport() {
             <li>Shopping: ${Math.round(breakdown.shopping)} kg</li>
         </ul>
         <h3>Top Recommendations</h3>
-        <ul>
-            ${Array.from(document.querySelectorAll('.recommendation-item .rec-title')).slice(0,5).map(el => `<li>${el.innerText}</li>`).join('')}
-        </ul>
+        <ul>${topRecommendations}</ul>
         <h3>Recent History</h3>
         <table border="1" cellpadding="6" cellspacing="0">
             <tr><th>Date</th><th>Total t CO₂e/yr</th><th>Score</th></tr>
-            ${(state.history || []).slice(-6).map(h => `<tr><td>${new Date(h.ts).toLocaleString()}</td><td>${h.totalTons.toFixed(2)}</td><td>${h.score}</td></tr>`).join('')}
+            ${historyRows}
         </table>
-        <p style="margin-top:24px;color:#666;font-size:12px">Caveats: ${generateCaveats()}</p>
+        <p style="margin-top:24px;color:#666;font-size:12px">Caveats: ${escapeHtml(generateCaveats())}</p>
         </body></html>`;
 
         win.document.write(html);
@@ -647,7 +671,7 @@ function printReport() {
 // 9. DASHBOARD RENDERER
 function renderDashboard() {
     // Ensure dashboard container is visible
-    document.getElementById('main-dashboard').style.display = 'grid';
+    document.getElementById('main-dashboard').classList.remove('is-hidden');
 
     // Update Header Level & XP
     document.getElementById('user-level-badge').innerText = state.level;
@@ -787,7 +811,7 @@ function renderEmissionsChart() {
 
     // Custom HTML legend
     const legendContainer = document.getElementById('chart-legend');
-    legendContainer.innerHTML = '';
+    legendContainer.replaceChildren();
     
     labels.forEach((label, i) => {
         const val = dataValues[i];
@@ -795,11 +819,18 @@ function renderEmissionsChart() {
         
         const item = document.createElement('div');
         item.className = 'legend-item';
-        item.innerHTML = `
-            <span class="legend-color" style="background-color: ${colors[i]};"></span>
-            <span class="legend-label">${label}</span>
-            <span class="legend-value">${pct}%</span>
-        `;
+        const color = document.createElement('span');
+        color.className = 'legend-color';
+        color.style.backgroundColor = colors[i];
+        const labelEl = document.createElement('span');
+        labelEl.className = 'legend-label';
+        labelEl.textContent = label;
+        const valueEl = document.createElement('span');
+        valueEl.className = 'legend-value';
+        valueEl.textContent = `${pct}%`;
+        item.appendChild(color);
+        item.appendChild(labelEl);
+        item.appendChild(valueEl);
         legendContainer.appendChild(item);
     });
 }
@@ -860,23 +891,44 @@ function median(arr){
 // 11. HABITS LIST GENERATOR
 function renderHabitsList() {
     const container = document.getElementById('habits-list-container');
-    container.innerHTML = '';
+    container.replaceChildren();
 
     HABITS.forEach(habit => {
         const isChecked = state.completedHabits.includes(habit.id);
         const item = document.createElement('div');
         item.className = `habit-item ${isChecked ? 'completed' : ''}`;
-        
-        item.innerHTML = `
-            <label class="habit-checkbox-label" for="habit-${habit.id}">
-                <input type="checkbox" id="habit-${habit.id}" class="habit-checkbox" ${isChecked ? 'checked' : ''} data-id="${habit.id}">
-                <span class="custom-checkbox"></span>
-                <div class="habit-details">
-                    <span class="habit-title">${habit.title}</span>
-                    <span class="habit-impact">-${habit.impact} kg CO₂e | +${habit.xp} XP</span>
-                </div>
-            </label>
-        `;
+
+        const label = document.createElement('label');
+        label.className = 'habit-checkbox-label';
+        label.htmlFor = `habit-${habit.id}`;
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = `habit-${habit.id}`;
+        input.className = 'habit-checkbox';
+        input.checked = isChecked;
+        input.dataset.id = habit.id;
+
+        const custom = document.createElement('span');
+        custom.className = 'custom-checkbox';
+
+        const details = document.createElement('div');
+        details.className = 'habit-details';
+
+        const title = document.createElement('span');
+        title.className = 'habit-title';
+        title.textContent = habit.title;
+
+        const impact = document.createElement('span');
+        impact.className = 'habit-impact';
+        impact.textContent = `-${habit.impact} kg CO₂e | +${habit.xp} XP`;
+
+        details.appendChild(title);
+        details.appendChild(impact);
+        label.appendChild(input);
+        label.appendChild(custom);
+        label.appendChild(details);
+        item.appendChild(label);
         
         // Listen to check event
         item.querySelector('.habit-checkbox').addEventListener('change', (e) => {
@@ -915,22 +967,42 @@ function handleHabitToggle(habitId, isChecked) {
 // 12. PLEDGES HUB RENDERER
 function renderPledgesList() {
     const container = document.getElementById('pledges-list-container');
-    container.innerHTML = '';
+    container.replaceChildren();
 
     PLEDGES.forEach(pledge => {
         const isPledged = state.pledgedActions.includes(pledge.id);
         const item = document.createElement('div');
         item.className = 'pledge-item';
-        
-        item.innerHTML = `
-            <div class="pledge-details">
-                <span class="pledge-title">${pledge.title}</span>
-                <span class="pledge-impact">-${pledge.impact} kg CO₂/yr permanent reduction</span>
-            </div>
-            <button class="btn btn-sm ${isPledged ? 'btn-pledged' : 'btn-primary'}" data-id="${pledge.id}">
-                ${isPledged ? '<i data-lucide="check"></i> Committed' : 'Pledge'}
-            </button>
-        `;
+
+        const details = document.createElement('div');
+        details.className = 'pledge-details';
+
+        const title = document.createElement('span');
+        title.className = 'pledge-title';
+        title.textContent = pledge.title;
+
+        const impact = document.createElement('span');
+        impact.className = 'pledge-impact';
+        impact.textContent = `-${pledge.impact} kg CO₂/yr permanent reduction`;
+
+        details.appendChild(title);
+        details.appendChild(impact);
+
+        const button = document.createElement('button');
+        button.className = `btn btn-sm ${isPledged ? 'btn-pledged' : 'btn-primary'}`;
+        button.type = 'button';
+        button.dataset.id = pledge.id;
+        if (isPledged) {
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'check');
+            button.appendChild(icon);
+            button.appendChild(document.createTextNode(' Committed'));
+        } else {
+            button.textContent = 'Pledge';
+        }
+
+        item.appendChild(details);
+        item.appendChild(button);
 
         item.querySelector('button').addEventListener('click', (e) => {
             handlePledgeToggle(pledge.id);
@@ -1080,10 +1152,18 @@ function showToast(message, iconName = "sparkles") {
         toast.className = 'toast toast-xp';
     }
     
-    toast.innerHTML = `
-        <div class="toast-icon"><i data-lucide="${iconName}"></i></div>
-        <div class="toast-message">${message}</div>
-    `;
+    const icon = document.createElement('div');
+    icon.className = 'toast-icon';
+    const iconNode = document.createElement('i');
+    iconNode.setAttribute('data-lucide', iconName);
+    icon.appendChild(iconNode);
+
+    const msg = document.createElement('div');
+    msg.className = 'toast-message';
+    msg.textContent = message;
+
+    toast.appendChild(icon);
+    toast.appendChild(msg);
 
     container.appendChild(toast);
     initLucide();

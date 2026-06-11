@@ -27,7 +27,7 @@
     <script src="calculations.js"></script>
     
     <!-- Content Security Policy (basic) -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;"> 
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-src 'none'; base-uri 'self'; form-action 'self';">
 </head>
 <body>
     <a href="#main-dashboard" class="skip-link">Skip to content</a>
@@ -69,7 +69,7 @@
         </header>
 
         <!-- DASHBOARD BODY (Hidden until onboarding/calculation is done) -->
-        <main class="dashboard-grid" id="main-dashboard" style="display: none;">
+        <main class="dashboard-grid is-hidden" id="main-dashboard">
             
             <!-- LEFT PANEL: Carbon Metrics & breakdown -->
             <section class="dashboard-col col-left">
@@ -286,22 +286,20 @@
                     </div>
                 </div>
 
-                <!-- ASSESSMENT HISTORY -->
-                    <!-- COMMUNITY COMPARISON -->
-                    <div class="card glassmorphic">
-                        <div class="card-header">
-                            <h2>Community Comparison</h2>
-                            <i data-lucide="bar-chart-2" class="icon-muted"></i>
-                        </div>
-                        <p class="card-subtitle">See how your footprint compares to a community distribution.</p>
-                        <div class="chart-container" style="height:140px;">
-                            <canvas id="communityChart"></canvas>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center;">
-                            <div class="community-percent">You are in the <strong id="community-percentile">--%</strong> percentile</div>
-                            <div class="community-legend" id="community-legend"></div>
-                        </div>
+                <div class="card glassmorphic community-card" role="region" aria-labelledby="community-title">
+                    <div class="card-header">
+                        <h2 id="community-title">Community Comparison</h2>
+                        <i data-lucide="bar-chart-2" class="icon-muted"></i>
                     </div>
+                    <p class="card-subtitle">See how your footprint compares to a community distribution.</p>
+                    <div class="chart-container community-chart-container">
+                        <canvas id="communityChart"></canvas>
+                    </div>
+                    <div class="community-meta">
+                        <div class="community-percent">You are in the <strong id="community-percentile">--%</strong> percentile</div>
+                        <div class="community-legend" id="community-legend"></div>
+                    </div>
+                </div>
 
                 <div class="card glassmorphic" role="region" aria-labelledby="history-title">
                     <div class="card-header">

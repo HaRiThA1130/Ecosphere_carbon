@@ -72,6 +72,26 @@ h1, h2, h3, h4 {
     flex-direction: column;
 }
 
+.is-hidden {
+    display: none;
+}
+
+.community-card {
+    min-height: 320px;
+}
+
+.community-chart-container {
+    height: 140px;
+}
+
+.community-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
 /* HEADER STYLE */
 .main-header {
     display: flex;

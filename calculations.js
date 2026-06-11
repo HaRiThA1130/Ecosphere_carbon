@@ -73,44 +73,64 @@
         return score;
     }
 
-    return { calculateEmissionsFromValues, computeCarbonScore, COEFF };
+    function buildRecommendations(inputs, emissions) {
+        const safeInputs = Object.assign({ carMiles:0 }, inputs || {});
+        const safeEmissions = Object.assign({ transport:0, energy:0, diet:0, shopping:0 }, emissions || {});
+
+        const pairs = [
+            { key: 'transport', val: safeEmissions.transport },
+            { key: 'energy', val: safeEmissions.energy },
+            { key: 'diet', val: safeEmissions.diet },
+            { key: 'shopping', val: safeEmissions.shopping }
+        ].sort((a, b) => b.val - a.val);
+
+        const top = pairs[0].key;
+        const recs = [];
+
+        if (top === 'transport') {
+            recs.push({ title: 'Swap one weekly 10-mile car trip to bike/transit', savingsKg: Math.round(10 * 52 * COEFF.carMile), action: { type: 'habit', id: 'public-transit' } });
+            recs.push({ title: 'Combine errands to reduce weekly driving by 25%', savingsKg: Math.round((safeInputs.carMiles * 52 * COEFF.carMile) * 0.25), action: { type: 'pledge', id: 'electric-bike' } });
+        } else if (top === 'energy') {
+            recs.push({ title: 'Lower thermostat 2° and save energy', savingsKg: 250, action: { type: 'habit', id: 'thermostat' } });
+            recs.push({ title: 'Switch to LED bulbs at home', savingsKg: 150, action: { type: 'pledge', id: 'led-bulbs' } });
+        } else if (top === 'diet') {
+            recs.push({ title: 'Replace 2 meat meals per week with plant meals', savingsKg: 300, action: { type: 'habit', id: 'plant-meal' } });
+            recs.push({ title: 'Try a monthly vegetarian challenge', savingsKg: 600, action: { type: 'pledge', id: 'meatless-mondays' } });
+        } else {
+            recs.push({ title: 'Buy one secondhand item instead of new per month', savingsKg: 120, action: { type: 'habit', id: 'zero-waste' } });
+            recs.push({ title: 'Reduce discretionary shopping by 30%', savingsKg: 240, action: { type: 'pledge', id: 'green-power' } });
+        }
+
+        recs.push({ title: 'Start composting to reduce food waste', savingsKg: 80, action: { type: 'habit', id: 'zero-waste' } });
+        return recs;
+    }
+
+    return { calculateEmissionsFromValues, computeCarbonScore, buildRecommendations, computePercentile, COEFF };
 }));
 
 // Compute percentile and bucket distribution for a value against a numeric array
-(function(){
-    function computePercentile(value, distribution, bins) {
-        if (!Array.isArray(distribution) || distribution.length === 0) {
-            return { percentile: 50, buckets: [], bins: [] };
+function computePercentile(value, distribution, bins) {
+    if (!Array.isArray(distribution) || distribution.length === 0) {
+        return { percentile: 50, buckets: [], bins: [] };
+    }
+    const sorted = distribution.slice().sort((a, b) => a - b);
+    let countLE = 0;
+    for (let i = 0; i < sorted.length; i++) if (sorted[i] <= value) countLE++;
+    const percentile = Math.round((countLE / sorted.length) * 100);
+
+    const defaultBins = [0, 2, 4, 8, 16, 32];
+    const b = Array.isArray(bins) && bins.length > 0 ? bins : defaultBins;
+    const buckets = new Array(b.length).fill(0);
+    for (let i = 0; i < sorted.length; i++) {
+        const v = sorted[i];
+        let placed = false;
+        for (let j = 0; j < b.length; j++) {
+            if (v <= b[j]) { buckets[j]++; placed = true; break; }
         }
-        const sorted = distribution.slice().sort((a,b)=>a-b);
-        let countLE = 0;
-        for (let i=0;i<sorted.length;i++) if (sorted[i] <= value) countLE++;
-        const percentile = Math.round((countLE / sorted.length) * 100);
-
-        // bins default
-        const defaultBins = [0,2,4,8,16,32];
-        const b = Array.isArray(bins) && bins.length>0 ? bins : defaultBins;
-        const buckets = new Array(b.length).fill(0);
-        for (let i=0;i<sorted.length;i++){
-            const v = sorted[i];
-            let placed = false;
-            for (let j=0;j<b.length;j++){
-                if (v <= b[j]) { buckets[j]++; placed = true; break; }
-            }
-            if (!placed) {
-                // overflow bucket
-                if (buckets[buckets.length-1] === undefined) buckets[buckets.length-1]=0;
-                buckets[buckets.length-1]++;
-            }
+        if (!placed) {
+            buckets[buckets.length - 1]++;
         }
-
-        return { percentile, buckets, bins: b };
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports.computePercentile = computePercentile;
-    }
-    if (typeof window !== 'undefined' && window.EcoCalc) {
-        window.EcoCalc.computePercentile = computePercentile;
-    }
-})();
+    return { percentile, buckets, bins: b };
+}
