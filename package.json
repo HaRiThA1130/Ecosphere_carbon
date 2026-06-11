@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Personal Carbon Coaching web app (HacktoSkill)",
   "scripts": {
-    "test": "vitest run"
+    "test": "npm exec -- vitest run"
   },
   "devDependencies": {
     "vitest": "^1.0.0"
