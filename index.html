@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoSphere | Track, Understand, and Reduce Your Carbon Footprint</title>
+    
+    <!-- Meta tags for SEO -->
+    <meta name="description" content="Calculate your environmental footprint, receive personalized climate actions, track green habits, and grow a virtual eco-forest to combat climate change.">
+    <meta name="keywords" content="carbon footprint, carbon calculator, save CO2, green habits, climate action, eco tracker">
+    
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Lucide Icons (CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Chart.js (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Calculations module (exposes pure functions for tests) -->
+    <script src="calculations.js"></script>
+    
+    <!-- Content Security Policy (basic) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;"> 
+</head>
+<body>
+    <a href="#main-dashboard" class="skip-link">Skip to content</a>
+
+    <!-- Notification system for micro-interactions -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="app-container">
+        
+        <!-- HEADER -->
+        <header class="main-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i data-lucide="globe"></i>
+                    <div class="pulse-ring"></div>
+                </div>
+                <div>
+                    <h1>EcoSphere</h1>
+                    <p class="tagline">Personal Climate Action Hub</p>
+                </div>
+            </div>
+            
+            <!-- User Rank & Level Summary -->
+            <div class="user-profile-badge">
+                <div class="badge-avatar">
+                    <span id="user-level-badge">1</span>
+                </div>
+                <div class="badge-details">
+                    <div class="rank-title" id="user-rank-name">Eco Explorer</div>
+                    <div class="xp-bar-container">
+                        <div class="xp-bar" id="user-xp-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="xp-text"><span id="user-xp-val">0</span> / 100 XP</div>
+                </div>
+                <button class="btn btn-icon-only ml-3" id="btn-recalculate" title="Recalculate footprint">
+                    <i data-lucide="refresh-cw"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD BODY (Hidden until onboarding/calculation is done) -->
+        <main class="dashboard-grid" id="main-dashboard" style="display: none;">
+            
+            <!-- LEFT PANEL: Carbon Metrics & breakdown -->
+            <section class="dashboard-col col-left">
+                <!-- Score Card -->
+                <div class="card card-hero glassmorphic">
+                    <div class="card-glow"></div>
+                    <div class="card-header">
+                        <h2>Your Carbon Footprint</h2>
+                        <span class="status-indicator status-green" id="footprint-status-tag">Good</span>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="score-display">
+                            <span class="score-number" id="total-score-val">0.0</span>
+                            <span class="score-unit">Metric Tons CO₂e/yr</span>
+                            <div class="carbon-score-row">
+                                <div class="carbon-score-label">Carbon Health Score</div>
+                                <div class="carbon-score-value" id="carbon-score">0</div>
+                            </div>
+                            <div class="score-caveats" id="score-caveats">Caveats: --</div>
+                        </div>
+                        <div class="score-comparison">
+                            <div class="comparison-bar">
+                                <div class="comparison-fill user-fill" id="comp-bar-user" style="width: 0%;"></div>
+                                <div class="marker marker-global" style="left: 25%;" title="Global Average: 4.0 Tons"></div>
+                                <div class="marker marker-national" style="left: 75%;" title="National Average: 16.0 Tons"></div>
+                            </div>
+                            <div class="comparison-labels">
+                                <span>You: <strong id="comp-lbl-user">0.0 t</strong></span>
+                                <span class="lbl-global">Global Avg: <strong>4.0 t</strong></span>
+                                <span class="lbl-national">US Avg: <strong>16.0 t</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart Card -->
+                <div class="card glassmorphic">
+                    <div class="card-header">
+                        <h2>Emissions Breakdown</h2>
+                        <i data-lucide="pie-chart" class="icon-muted"></i>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="emissionsChart"></canvas>
+                        <div id="chart-legend" class="chart-legend"></div>
+                    </div>
+                </div>
+
+                <!-- Achievements Card -->
+                <div class="card glassmorphic">
+                    <div class="card-header">
+                        <h2>Eco Achievements</h2>
+                        <span class="badge-count" id="unlocked-badge-count">0/6 Unlocked</span>
+                    </div>
+                    <div class="badges-grid">
+                        <div class="badge-item locked" id="badge-commute" data-title="Commute Champion" data-desc="Complete 3 transit or cycling habits.">
+                            <div class="badge-icon"><i data-lucide="bike"></i></div>
+                            <span>Commute Hero</span>
+                        </div>
+                        <div class="badge-item locked" id="badge-diet" data-title="Green Gourmet" data-desc="Adopt vegetarian or vegan diet settings.">
+                            <div class="badge-icon"><i data-lucide="apple"></i></div>
+                            <span>Green Gourmet</span>
+                        </div>
+                        <div class="badge-item locked" id="badge-energy" data-title="Watt Saver" data-desc="Reduce home electricity footprint below average.">
+                            <div class="badge-icon"><i data-lucide="zap"></i></div>
+                            <span>Watt Saver</span>
+                        </div>
+                        <div class="badge-item locked" id="badge-offset" data-title="Forest Guardian" data-desc="Offset at least 1,000kg of CO2.">
+                            <div class="badge-icon"><i data-lucide="trees"></i></div>
+                            <span>Forest Guardian</span>
+                        </div>
+                        <div class="badge-item locked" id="badge-habits" data-title="Eco Warrior" data-desc="Perform 5 daily habits in one day.">
+                            <div class="badge-icon"><i data-lucide="shield"></i></div>
+                            <span>Eco Warrior</span>
+                        </div>
+                        <div class="badge-item locked" id="badge-carbon" data-title="Carbon Minimalist" data-desc="Achieve a footprint below the global average (<4t).">
+                            <div class="badge-icon"><i data-lucide="leaf"></i></div>
+                            <span>Minimalist</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CENTER PANEL: Virtual Forest & Offset Simulator -->
+            <section class="dashboard-col col-center">
+                <!-- Virtual Eco-Forest -->
+                <div class="card forest-card glassmorphic">
+                    <div class="forest-overlay">
+                        <div class="forest-stats">
+                            <div>
+                                <h3 id="forest-tree-count">0 Trees</h3>
+                                <p>Virtual Forest Grown</p>
+                            </div>
+                            <div class="savings-ticker">
+                                <i data-lucide="sparkles"></i>
+                                <span>Saved: <strong id="total-co2-saved-val">0</strong> kg CO₂e</span>
+                            </div>
+                        </div>
+                        <div class="forest-tips">Click trees to water them and gain extra bonus XP!</div>
+                    </div>
+                    <div class="canvas-container">
+                        <!-- Custom interactive drawing area for trees -->
+                        <canvas id="forestCanvas"></canvas>
+                    </div>
+                    <div class="forest-actions">
+                        <button class="btn btn-primary btn-sm" id="btn-water-forest">
+                            <i data-lucide="droplet"></i> Water Forest (+5 XP)
+                        </button>
+                        <button class="btn btn-secondary btn-sm" id="btn-plant-seed">
+                            <i data-lucide="sprout"></i> Plant Seed (Requires 50kg CO₂ Saved)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Offset Simulator -->
+                <div class="card glassmorphic">
+                    <div class="card-header">
+                        <h2>Carbon Offset Simulation</h2>
+                        <i data-lucide="calculator" class="icon-muted"></i>
+                    </div>
+                    <p class="card-subtitle">Support real-world projects to balance your emissions & accelerate tree growth.</p>
+                    
+                    <div class="offset-slider-group">
+                        <div class="slider-header">
+                            <span>Offset Amount</span>
+                            <span class="slider-value" id="offset-amount-label">0 kg CO₂</span>
+                        </div>
+                        <input type="range" id="offset-slider" min="0" max="5000" step="50" value="0" class="slider">
+                    </div>
+
+                    <div class="offset-selector">
+                        <div class="offset-option active" data-type="trees" data-cost="0.15">
+                            <div class="option-icon"><i data-lucide="tree-pine"></i></div>
+                            <div class="option-details">
+                                <h4>Reforestation</h4>
+                                <p>$0.15 per kg CO₂</p>
+                            </div>
+                        </div>
+                        <div class="offset-option" data-type="wind" data-cost="0.08">
+                            <div class="option-icon"><i data-lucide="wind"></i></div>
+                            <div class="option-details">
+                                <h4>Wind energy</h4>
+                                <p>$0.08 per kg CO₂</p>
+                            </div>
+                        </div>
+                        <div class="offset-option" data-type="cookstoves" data-cost="0.05">
+                            <div class="option-icon"><i data-lucide="flame"></i></div>
+                            <div class="option-details">
+                                <h4>Cookstove projects</h4>
+                                <p>$0.05 per kg CO₂</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="offset-summary">
+                        <div class="summary-item">
+                            <span>Estimated Project Cost:</span>
+                            <strong id="offset-cost-val">$0.00</strong>
+                        </div>
+                        <button class="btn btn-success" id="btn-purchase-offset">
+                            <i data-lucide="credit-card"></i> Simulate Offset Pledge
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT PANEL: Habits & Action Hub -->
+            <section class="dashboard-col col-right">
+                <!-- Insights Banner -->
+                <div class="card card-insight" id="insight-banner">
+                    <div class="insight-icon">
+                        <i data-lucide="lightbulb"></i>
+                    </div>
+                    <div class="insight-content">
+                        <h3>Personalized Insight</h3>
+                        <p id="insight-text">Analyzing your emissions profile. Finish onboarding to view tips...</p>
+                    </div>
+                </div>
+
+                <!-- Daily Habits Tracker -->
+                <div class="card glassmorphic flex-grow-1">
+                    <div class="card-header">
+                        <h2>Daily Green Habits</h2>
+                        <span class="card-badge">Refresh Daily</span>
+                    </div>
+                    <p class="card-subtitle">Small steps lead to massive change. Complete these today!</p>
+                    
+                    <div class="habits-list" id="habits-list-container">
+                        <!-- Dynamically filled by JS -->
+                    </div>
+                </div>
+
+                <!-- Long-Term Pledge commitments -->
+                <div class="card glassmorphic">
+                    <div class="card-header">
+                        <h2>Eco Commitments</h2>
+                        <i data-lucide="award" class="icon-muted"></i>
+                    </div>
+                    <p class="card-subtitle">Commit to sustainable shifts to permanently lower your footprint.</p>
+                    
+                    <div class="pledges-list" id="pledges-list-container">
+                        <!-- Dynamically filled by JS -->
+                    </div>
+                </div>
+
+                <!-- COACH RECOMMENDATIONS -->
+                <div class="card glassmorphic">
+                    <div class="card-header">
+                        <h2>Coach Recommendations</h2>
+                        <i data-lucide="message-square" class="icon-muted"></i>
+                    </div>
+                    <p class="card-subtitle">Personalized, deterministic tips with estimated savings.</p>
+                    <div id="recommendations-container" class="recommendations-list">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+
+                <!-- ASSESSMENT HISTORY -->
+                    <!-- COMMUNITY COMPARISON -->
+                    <div class="card glassmorphic">
+                        <div class="card-header">
+                            <h2>Community Comparison</h2>
+                            <i data-lucide="bar-chart-2" class="icon-muted"></i>
+                        </div>
+                        <p class="card-subtitle">See how your footprint compares to a community distribution.</p>
+                        <div class="chart-container" style="height:140px;">
+                            <canvas id="communityChart"></canvas>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center;">
+                            <div class="community-percent">You are in the <strong id="community-percentile">--%</strong> percentile</div>
+                            <div class="community-legend" id="community-legend"></div>
+                        </div>
+                    </div>
+
+                <div class="card glassmorphic" role="region" aria-labelledby="history-title">
+                    <div class="card-header">
+                        <h2 id="history-title">Assessment History</h2>
+                        <i data-lucide="clock" class="icon-muted"></i>
+                    </div>
+                    <p class="card-subtitle">Track your footprint over time.</p>
+                    <div class="history-chart-container">
+                        <canvas id="historyChart" style="height:120px;width:100%"></canvas>
+                    </div>
+                    <div class="export-actions" style="display:flex;gap:8px;margin-bottom:8px;">
+                        <button id="btn-export-json" class="btn btn-sm" aria-label="Export assessments as JSON">Export JSON</button>
+                        <button id="btn-export-csv" class="btn btn-sm" aria-label="Export assessments as CSV">Export CSV</button>
+                        <button id="btn-print-report" class="btn btn-sm" aria-label="Print a summary report">Print Report</button>
+                    </div>
+                    <div id="history-list" class="history-list" role="list" aria-live="polite"></div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- CALCULATOR WIZARD MODAL -->
+        <div class="modal-overlay" id="calculator-modal">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <i data-lucide="leaf" class="text-green"></i>
+                        <h2>Calculate Your Eco Footprint</h2>
+                    </div>
+                    <div class="step-indicator" id="wizard-steps-indicator">Step 1 of 4</div>
+                </div>
+
+                <!-- Wizard Progress Bar -->
+                <div class="wizard-progress-bar">
+                    <div class="wizard-progress-fill" id="wizard-progress-fill" style="width: 25%;"></div>
+                </div>
+
+                <form id="calculator-form" onsubmit="return false;">
+                    
+                    <!-- STEP 1: TRANSPORTATION -->
+                    <div class="wizard-step active" data-step="1">
+                        <h3><i data-lucide="car" class="step-icon"></i> Transportation</h3>
+                        <p class="step-desc">Your daily travel and flights make up a massive portion of average emissions.</p>
+                        
+                        <div class="form-group">
+                            <label for="input-car-miles">Weekly Car Mileage (miles)</label>
+                            <input type="number" id="input-car-miles" placeholder="e.g. 150" min="0" max="2000" class="form-control" required>
+                            <span class="input-help">Average vehicle travel is about 220 miles per week.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-transit-hours">Weekly Public Transit Use (hours)</label>
+                            <input type="number" id="input-transit-hours" placeholder="e.g. 5" min="0" max="100" class="form-control" required>
+                            <span class="input-help">Includes trains, subways, and buses.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-flight-hours">Annual Flight Duration (hours)</label>
+                            <input type="number" id="input-flight-hours" placeholder="e.g. 10" min="0" max="300" class="form-control" required>
+                            <span class="input-help">A round-trip transatlantic flight is roughly 15 hours.</span>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2: HOME ENERGY -->
+                    <div class="wizard-step" data-step="2">
+                        <h3><i data-lucide="home" class="step-icon"></i> Home Energy</h3>
+                        <p class="step-desc">How you heat, cool, and power your home changes your baseline footprint.</p>
+                        
+                        <div class="form-group">
+                            <label for="input-electricity">Monthly Electricity Consumption (kWh)</label>
+                            <input type="number" id="input-electricity" placeholder="e.g. 900" min="0" max="10000" class="form-control" required>
+                            <span class="input-help">Average US household uses ~900 kWh per month.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="select-heating">Primary Heating Source</label>
+                            <select id="select-heating" class="form-control" required>
+                                <option value="natural-gas">Natural Gas</option>
+                                <option value="electricity">Electricity</option>
+                                <option value="heating-oil">Heating Oil</option>
+                                <option value="none">None / Renewable</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-household-size">Number of Household Members</label>
+                            <input type="number" id="input-household-size" value="1" min="1" max="15" class="form-control" required>
+                            <span class="input-help">Emissions from home energy will be divided among household members.</span>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: DIET & FOOD -->
+                    <div class="wizard-step" data-step="3">
+                        <h3><i data-lucide="utensils" class="step-icon"></i> Diet & Food</h3>
+                        <p class="step-desc">Agriculture accounts for ~25% of global emissions. Diet is a quick way to reduce footprint.</p>
+                        
+                        <div class="form-group">
+                            <label for="select-diet">Primary Diet Style</label>
+                            <select id="select-diet" class="form-control" required>
+                                <option value="heavy-meat">Heavy Meat Eater (Daily beef/pork)</option>
+                                <option value="medium-meat">Average Meat Eater (Mixed diet)</option>
+                                <option value="low-meat">Low Meat / Flexitarian</option>
+                                <option value="vegetarian">Vegetarian (No meat, does dairy)</option>
+                                <option value="vegan">Vegan (Entirely plant-based)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="select-waste">Food Waste Habits</label>
+                            <select id="select-waste" class="form-control" required>
+                                <option value="high">High Waste (Frequently throw away food)</option>
+                                <option value="medium">Average Waste (Occasional leftovers discarded)</option>
+                                <option value="low">Minimal Waste (Always reuse/compost)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- STEP 4: CONSUMPTION & SHOPPING -->
+                    <div class="wizard-step" data-step="4">
+                        <h3><i data-lucide="shopping-bag" class="step-icon"></i> Shopping & Goods</h3>
+                        <p class="step-desc">Every product purchased has a lifecycle of manufacturing, packaging, and shipping.</p>
+                        
+                        <div class="form-group">
+                            <label for="select-shopping-goods">Monthly Spending on Goods (Clothing, Electronics, furniture)</label>
+                            <select id="select-shopping-goods" class="form-control" required>
+                                <option value="high">High spender ($500+ / month)</option>
+                                <option value="medium">Average spender ($150 - $500 / month)</option>
+                                <option value="low">Minimalist / Thrift-focused (Under $150 / month)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="checkbox-recycle">
+                                <input type="checkbox" id="checkbox-recycle" checked> Recycles regularly (Paper, Glass, Plastics, Cans)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- BUTTON CONTROLS -->
+                    <div class="wizard-actions">
+                        <button type="button" class="btn btn-secondary" id="btn-wizard-prev" disabled>Back</button>
+                        <button type="button" class="btn btn-primary" id="btn-wizard-next">Next</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MAIN JAVASCRIPT -->
+    <script src="app.js"></script>
+</body>
+</html>

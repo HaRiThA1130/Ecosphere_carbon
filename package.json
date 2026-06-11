@@ -1,0 +1,11 @@
+{
+  "name": "ecosphere",
+  "version": "1.0.0",
+  "description": "Personal Carbon Coaching web app (HacktoSkill)",
+  "scripts": {
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0"
+  }
+}
